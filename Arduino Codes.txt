@@ -1,0 +1,138 @@
+#include <LiquidCrystal.h>
+#include <Password.h>        
+#include <Keypad.h>
+           
+LiquidCrystal lcd(21,20,45,44,43,42);
+
+//LCD
+float temp;
+
+//YANGIN SENSÖR
+const int FlameSensor = 2; // the number of the flame sensor pin
+const int buzzer =  1; // the number of the LED pin
+
+//PIR SENSÖR
+int pir;
+int pinLed=8; //lamba pini
+int pinPir=3; //hareket sensörü pini
+
+//KEYPAD
+Password password = Password("1234");   //şifre belirledik  
+
+int ledGreen  = 13;   //yeşil led pini    
+int ledRed = 12;    //kırmızı led pini
+
+const byte row = 4;   //satır tanımladık
+const byte column = 3;    //sütun tanımladık   
+char keys[row][column] =   
+{
+  {'1','2','3'},
+  {'4','5','6'},
+  {'7','8','9'},
+  {'*','0','#'}
+};
+
+byte rowPin[row] = { 29, 28, 27, 26 };    
+byte columnPin[column] = { 32, 31, 30 };       
+
+Keypad keypad = Keypad( makeKeymap(keys), rowPin, columnPin, row, column );
+
+void setup() 
+{ 
+  
+  lcd.begin(16,2);
+  
+  pinMode (FlameSensor, INPUT);   //yangın sensörünün pinini giriş olarak tanımla
+  pinMode (buzzer, OUTPUT);   //buzzer'ı çıkış olarak tanımla
+  
+  pinMode(8,OUTPUT);    //pır lamba çıkış olarak tanımla
+  pinMode(3,INPUT);   //pır sensörünün pinini giriş olarak tanımla
+
+  pinMode(ledGreen, OUTPUT);    //yeşil led output
+  pinMode(ledRed, OUTPUT);      //kırmızı led output
+  digitalWrite(ledRed, HIGH);     
+  keypad.addEventListener(keypadEvent);
+}
+
+void loop()
+{
+  temp = analogRead(A0);                                                    
+  temp=(5*temp*100)/1024;
+  lcd.setCursor(0,0);
+  if(temp<20){
+    lcd.print("Sicaklik dustu");
+  }
+  else if(temp>30){
+    lcd.print("Sicaklik artti");
+  }
+  else{
+    lcd.print("TEMP: ");
+    lcd.print(temp);
+    lcd.println("*C");
+  }
+  
+  int sensorState = digitalRead (FlameSensor); //flame sensör degerini oku
+  
+  if (sensorState == HIGH) //yangın varsa değer==high
+  {
+    digitalWrite(buzzer, HIGH); //buzzer öter
+  }
+  
+  else  //yangın yoksa değer=low
+  {
+    digitalWrite(buzzer, LOW); //buzzer kapalı
+  }
+
+  pir=digitalRead(pinPir);
+  if(pir==HIGH){
+    digitalWrite(pinLed,HIGH); 
+  }
+  else{
+    digitalWrite(pinLed,LOW);
+  }
+
+  char key = keypad.getKey();
+}
+
+void keypadEvent(KeypadEvent eKey)
+{
+  switch (keypad.getState())
+  {
+    case PRESSED:
+    Serial.println(eKey);
+    delay(10);
+
+    switch (eKey)
+    {
+      case '*': login(); delay(1); break;   
+
+      case '#': password.reset(); delay(1); break;    
+
+      default: password.append(eKey); delay(1);
+    }
+  }
+}
+
+void login()
+{
+  if (password.evaluate())    
+  {
+    digitalWrite(ledRed, LOW);    
+    digitalWrite(ledGreen, HIGH);   //şifre doğru
+    delay(3000);
+
+    
+    digitalWrite(ledRed, HIGH);   
+    digitalWrite(ledGreen, LOW);    //şifre yanlış
+    password.reset();   
+  }
+  else
+  {
+    digitalWrite(ledRed, HIGH);   
+    digitalWrite(ledGreen, LOW);    //şifre girilmedi,sistem boşta
+    delay(3000);
+
+    
+    password.reset();
+  }
+}
